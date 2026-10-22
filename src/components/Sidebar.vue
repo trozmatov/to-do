@@ -18,6 +18,7 @@ import { useInstallPrompt } from '@/composables/useInstallPrompt'
 import AppIcon from './AppIcon.vue'
 import ProjectForm from './ProjectForm.vue'
 import ConfirmModal from './ConfirmModal.vue'
+import TrashModal from './TrashModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -33,6 +34,7 @@ const emit = defineEmits(['open-install'])
 // Modal holatlari
 const projectFormOpen = ref(false)
 const editingProject = ref(null)
+const trashModalOpen = ref(false)
 
 const confirmDeleteOpen = ref(false)
 const projectToDelete = ref(null)
@@ -167,6 +169,21 @@ const themeLabels = {
             class="badge"
           >
             {{ tasksStore.openCountByProject['inbox'] }}
+          </span>
+        </button>
+
+        <!-- Savatcha -->
+        <button
+          type="button"
+          class="nav-item trash-nav-item"
+          @click="trashModalOpen = true; uiStore.sidebarOpen = false"
+        >
+          <span class="item-icon-wrap trash-icon-wrap">
+            <AppIcon name="trash" :size="16" />
+          </span>
+          <span class="item-name">Savatcha</span>
+          <span v-if="tasksStore.trashCount > 0" class="badge badge-subtle">
+            {{ tasksStore.trashCount }}
           </span>
         </button>
 
@@ -331,6 +348,12 @@ const themeLabels = {
         </div>
       </div>
     </ConfirmModal>
+
+    <!-- Savatcha modali -->
+    <TrashModal
+      :open="trashModalOpen"
+      @close="trashModalOpen = false"
+    />
   </div>
 </template>
 
@@ -459,6 +482,18 @@ const themeLabels = {
 .all-icon {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.trash-icon-wrap {
+  background: var(--surface-2);
+  color: var(--text-3);
+  border: 1px solid var(--border);
+}
+
+.trash-nav-item:hover .trash-icon-wrap {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: transparent;
 }
 
 .custom-emoji {

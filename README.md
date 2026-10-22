@@ -14,6 +14,13 @@ Barcha matnlar va interfeys **o'zbek tilida**. Ma'lumotlar foydalanuvchining o'z
 - **Muddati o'tgan vazifalar nazorati:** O'tgan davrlarda bajarilmay qolgan vazifalar joriy davr tepasida alohida ogohlantirish bloki bilan chiqadi va bitta tugma orqali "Joriy davrga ko'chirish" imkoniyati mavjud.
 - **Loyihalar (Bo'limlar):** Loyiha nomi, maxsus ranglar va emojilar. Loyihani o'chirishda vazifalarni "Kiruvchi"ga ko'chirish yoki birga o'chirish tanlovi.
 - **Statistika va Progress Bar:** Har bir davr va tanlangan loyiha bo'yicha jami, bajarilgan, qolgan vazifalar va bajarilish foizi.
+- **Ichki vazifalar (Subtasks / Checklist):** Katta vazifalarni bosqichma-bosqich qadamlarga bo'lish, har bir qadamni belgilash va kartochka ustida mini-progress ko'rinishi.
+- **Takrorlanuvchi vazifalar (Recurring Tasks):** Har kuni, ish kunlari (Dush-Juma), har hafta yoki har oy avtomatik qayta tiklanuvchi vazifalar. Bajarilganda keyingi sana uchun yangi nusxasi o'zi ochiladi.
+- **Aniq vaqt va Bildirishnomalar:** Vazifaga soat/daqiqa belgilash va vaqti yetganda brauzer/tizim eslatma bildirishnomasi (Web Notification) chiqarish.
+- **Pomodoro Taymer va Fokus rejimi:** Tanlangan vazifa uchun 25 daqiqalik fokus taymeri, 5/15 daqiqalik tanaffuslar, aylanuvchi progress va taymer yakunida mayin gong tovushi.
+- **Streak & Odatlar statistikasi (🔥):** Kunlik rejalarni bajarish ketma-ketligi (Streak), haftalik 7 kunlik faollik ustunli grafigi va jami bajarilgan ishlar tahlili.
+- **Yoqimli mikro-animatsiya va Ovoz:** Vazifa bajarilganda Web Audio API yordamida chalinuvchi mayin akkord (chime) va rang-barang bayramona konfetti uchqunlari.
+- **Savatcha (Trash / Recycle Bin):** O'chirilgan vazifalar vaqtinchalik savatchaga tushadi, ularni istalgan payt qayta tiklash yoki butunlay tozalash mumkin.
 - **Drag & Drop Tartiblash:** Vazifalarni sensorli ekranda va sichqoncha orqali sudrab tartiblash (`vue-draggable-plus` yordamida).
 - **Qidiruv va Filtr:** Barchasi / Bajarilmagan / Bajarilgan holatlari, saralash tartibi va tezkor sarlavha qidiruvi.
 - **macOS Widget ko'rinishi (`/widget`):** 360×480 px ixcham oynaga moslashtirilgan, faqat bugungi kunlik vazifalar va tezkor qo'shish maydoni.

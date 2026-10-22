@@ -31,14 +31,14 @@ const headerLabel = computed(() => periodLabel('day', todayDate.value))
 
 // Bugungi kunlik vazifalar
 const todayTasks = computed(() => {
-  return tasksStore.items.filter(
+  return tasksStore.activeTasks.filter(
     (t) => t.periodType === 'day' && t.date === todayISO.value,
   )
 })
 
 // Muddati o'tgan kunlik vazifalar
 const overdueDayTasks = computed(() => {
-  return tasksStore.items.filter(
+  return tasksStore.activeTasks.filter(
     (t) => !t.completed && t.periodType === 'day' && t.date < todayISO.value,
   )
 })

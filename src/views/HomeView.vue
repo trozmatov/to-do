@@ -20,6 +20,8 @@ import ProgressBar from '@/components/ProgressBar.vue'
 import TaskToolbar from '@/components/TaskToolbar.vue'
 import TaskList from '@/components/TaskList.vue'
 import TaskForm from '@/components/TaskForm.vue'
+import FocusModal from '@/components/FocusModal.vue'
+import ProductivityModal from '@/components/ProductivityModal.vue'
 import AppIcon from '@/components/AppIcon.vue'
 
 const { periodType, key, currentKey, isCurrent } = usePeriod()
@@ -27,9 +29,14 @@ const projectsStore = useProjectsStore()
 const tasksStore = useTasksStore()
 const uiStore = useUiStore()
 
-// Vazifa formasi holati
+// Modallar holati
 const taskFormOpen = ref(false)
 const taskToEdit = ref(null)
+
+const focusModalOpen = ref(false)
+const selectedTaskForFocus = ref(null)
+
+const productivityModalOpen = ref(false)
 
 // Tanlangan loyiha nomi va rangi
 const currentProject = computed(() => {
@@ -73,6 +80,16 @@ function handleEditTask(task) {
 function handleDeleteTask(id) {
   tasksStore.remove(id)
 }
+
+function openFocusForTask(task) {
+  selectedTaskForFocus.value = task
+  focusModalOpen.value = true
+}
+
+function openGeneralFocus() {
+  selectedTaskForFocus.value = null
+  focusModalOpen.value = true
+}
 </script>
 
 <template>
@@ -106,6 +123,29 @@ function handleDeleteTask(id) {
       </div>
 
       <div class="header-actions">
+        <!-- Streak va Statistika tugmasi -->
+        <button
+          type="button"
+          class="btn btn-secondary header-action-btn streak-btn"
+          :class="{ active: tasksStore.productivityStats.streak > 0 }"
+          title="Streak va Unumdorlik statistikasi"
+          @click="productivityModalOpen = true"
+        >
+          <AppIcon name="flame" :size="17" />
+          <span class="streak-btn-text">{{ tasksStore.productivityStats.streak }} kun</span>
+        </button>
+
+        <!-- Pomodoro Fokus tugmasi -->
+        <button
+          type="button"
+          class="btn btn-secondary header-action-btn focus-trigger-btn"
+          title="Fokus rejimi (Pomodoro)"
+          @click="openGeneralFocus"
+        >
+          <AppIcon name="timer" :size="17" />
+          <span class="focus-btn-text">Fokus</span>
+        </button>
+
         <button
           type="button"
           class="btn btn-primary new-task-btn"
@@ -170,6 +210,7 @@ function handleDeleteTask(id) {
           @create="openCreateTask"
           @edit="handleEditTask"
           @delete="handleDeleteTask"
+          @focus="openFocusForTask"
         />
       </section>
     </main>
@@ -192,6 +233,19 @@ function handleDeleteTask(id) {
       :default-date="key"
       :default-project-id="tasksStore.filter.projectId"
       @close="taskFormOpen = false"
+    />
+
+    <!-- Pomodoro Fokus modali -->
+    <FocusModal
+      :open="focusModalOpen"
+      :task="selectedTaskForFocus"
+      @close="focusModalOpen = false"
+    />
+
+    <!-- Unumdorlik va Streak modali -->
+    <ProductivityModal
+      :open="productivityModalOpen"
+      @close="productivityModalOpen = false"
     />
   </div>
 </template>
@@ -360,5 +414,53 @@ function handleDeleteTask(id) {
   .fab-btn {
     display: grid;
   }
+  .streak-btn .streak-btn-text,
+  .focus-trigger-btn .focus-btn-text {
+    display: none;
+  }
+  .header-action-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+}
+
+.streak-btn {
+  color: var(--text-2);
+}
+
+.streak-btn.active {
+  color: #ea580c;
+  background: rgba(249, 115, 22, 0.12);
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.streak-btn.active:hover {
+  background: rgba(249, 115, 22, 0.18);
+}
+
+.focus-trigger-btn:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 </style>

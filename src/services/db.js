@@ -21,7 +21,7 @@ const STORES = ['projects', 'tasks', 'meta']
 const VALID_PERIODS = ['day', 'week', 'month', 'year']
 const VALID_PRIORITIES = ['low', 'medium', 'high']
 /** Zaxiraga kiradigan sozlamalar (qurilmaga xos qiymatlar kirmaydi) */
-const EXPORTABLE_META = ['theme', 'sortMode', 'startInWidget']
+const EXPORTABLE_META = ['theme', 'sortMode', 'startInWidget', 'soundEnabled', 'confettiEnabled', 'notificationsEnabled']
 
 /** Noyob ID. randomUUID faqat HTTPS/localhost'da bor, shuning uchun zaxira varianti ham bor. */
 export function uid() {
@@ -221,6 +221,8 @@ export const saveTasks = (tasks) => A().batch(tasks.map((value) => ({ type: 'put
 
 export const deleteTask = (id) => A().batch([{ type: 'delete', store: 'tasks', key: id }])
 
+export const deleteTasks = (ids) => A().batch(ids.map((key) => ({ type: 'delete', store: 'tasks', key })))
+
 /* ------------------------------------------------------------------ */
 /* Meta (sozlamalar)                                                   */
 /* ------------------------------------------------------------------ */
@@ -321,6 +323,16 @@ export function validateBackup(text) {
       projectId = INBOX_ID
       reassigned++
     }
+    const subtasks = Array.isArray(t.subtasks)
+      ? t.subtasks
+          .filter((s) => s && isStr(s.title) && s.title.trim())
+          .map((s, si) => ({
+            id: isStr(s.id) && s.id ? s.id : `sub_${i}_${si}`,
+            title: s.title.trim().slice(0, 200),
+            completed: s.completed === true,
+          }))
+      : []
+
     tasks.push({
       id: t.id,
       projectId,
@@ -330,6 +342,12 @@ export function validateBackup(text) {
       date: t.date,
       priority: VALID_PRIORITIES.includes(t.priority) ? t.priority : 'medium',
       completed: t.completed === true,
+      completedAt: isStr(t.completedAt) ? t.completedAt : null,
+      deletedAt: isStr(t.deletedAt) ? t.deletedAt : null,
+      subtasks,
+      time: isStr(t.time) ? t.time : '',
+      reminder: t.reminder === true,
+      recurring: isStr(t.recurring) ? t.recurring : 'none',
       order: Number.isFinite(t.order) ? t.order : i,
       createdAt: validTs(t.createdAt),
       updatedAt: validTs(t.updatedAt),

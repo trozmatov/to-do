@@ -23,6 +23,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const persisted = ref(null)
   const storageEstimate = ref(null)
 
+  const soundEnabled = ref(true)
+  const confettiEnabled = ref(true)
+  const notificationsEnabled = ref(false)
+
   // Tizim mavzusi (prefers-color-scheme) bilan sinxron
   const mq = typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)') : null
   const systemDark = ref(mq?.matches ?? false)
@@ -50,6 +54,9 @@ export const useSettingsStore = defineStore('settings', () => {
     theme.value = meta.theme ?? 'system'
     sortMode.value = meta.sortMode ?? 'manual'
     startInWidget.value = meta.startInWidget ?? false
+    soundEnabled.value = meta.soundEnabled ?? true
+    confettiEnabled.value = meta.confettiEnabled ?? true
+    notificationsEnabled.value = meta.notificationsEnabled ?? false
     lastBackupAt.value = meta.lastBackupAt ?? null
     firstRunAt.value = meta.firstRunAt ?? null
     if (!firstRunAt.value) {
@@ -118,11 +125,29 @@ export const useSettingsStore = defineStore('settings', () => {
     return persisted.value
   }
 
+  async function setSoundEnabled(value) {
+    soundEnabled.value = value
+    await save('soundEnabled', value)
+  }
+
+  async function setConfettiEnabled(value) {
+    confettiEnabled.value = value
+    await save('confettiEnabled', value)
+  }
+
+  async function setNotificationsEnabled(value) {
+    notificationsEnabled.value = value
+    await save('notificationsEnabled', value)
+  }
+
   return {
     theme,
     resolvedTheme,
     sortMode,
     startInWidget,
+    soundEnabled,
+    confettiEnabled,
+    notificationsEnabled,
     lastBackupAt,
     firstRunAt,
     persisted,
@@ -134,6 +159,9 @@ export const useSettingsStore = defineStore('settings', () => {
     cycleTheme,
     setSortMode,
     setStartInWidget,
+    setSoundEnabled,
+    setConfettiEnabled,
+    setNotificationsEnabled,
     markBackup,
     checkPersistence,
   }

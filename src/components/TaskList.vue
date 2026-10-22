@@ -19,7 +19,7 @@ const props = defineProps({
   overdueTasks: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['edit', 'delete', 'create'])
+const emit = defineEmits(['edit', 'delete', 'create', 'focus'])
 
 const tasksStore = useTasksStore()
 const settingsStore = useSettingsStore()
@@ -96,6 +96,7 @@ function onDragEnd() {
             :show-move-action="true"
             @edit="emit('edit', $event)"
             @delete="emit('delete', $event)"
+            @focus="emit('focus', $event)"
           />
         </div>
       </div>
@@ -121,6 +122,7 @@ function onDragEnd() {
             :can-drag="canDrag"
             @edit="emit('edit', $event)"
             @delete="emit('delete', $event)"
+            @focus="emit('focus', $event)"
           />
         </VueDraggable>
       </div>

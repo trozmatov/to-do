@@ -22,6 +22,7 @@ import {
 } from '@/services/db'
 import BaseModal from '@/components/BaseModal.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import { notifications } from '@/services/notifications'
 
 const router = useRouter()
 const settingsStore = useSettingsStore()
@@ -31,6 +32,19 @@ const tasksStore = useTasksStore()
 
 const storageStatus = getStorageStatus()
 const fileInput = ref(null)
+
+const notificationPermState = ref(notifications.getPermission())
+const notificationPermGranted = computed(() => notificationPermState.value === 'granted')
+
+async function handleRequestNotificationPerm() {
+  const perm = await notifications.requestPermission()
+  notificationPermState.value = perm
+  if (perm === 'granted') {
+    uiStore.notify("Bildirishnomalar muvaffaqiyatli yoqildi!", { type: 'success' })
+  } else {
+    uiStore.notify("Bildirishnomalarga ruxsat berilmadi", { type: 'warning' })
+  }
+}
 
 // Import modali
 const importModalOpen = ref(false)
@@ -218,6 +232,55 @@ async function requestPersist() {
               {{ s.label }}
             </option>
           </select>
+        </div>
+
+        <!-- Ovozli effektlar -->
+        <div class="setting-item">
+          <div class="setting-text">
+            <span class="setting-label">Ovozli effektlar (Chime)</span>
+            <span class="setting-desc">Vazifa bajarilganda va taymer tugaganda mayin akkord tovushi</span>
+          </div>
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              :checked="settingsStore.soundEnabled"
+              @change="settingsStore.setSoundEnabled($event.target.checked)"
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- Konfetti animatsiyasi -->
+        <div class="setting-item">
+          <div class="setting-text">
+            <span class="setting-label">Konfetti animatsiyasi</span>
+            <span class="setting-desc">Vazifa bajarilganda bayramona uchqunlar porlashi</span>
+          </div>
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              :checked="settingsStore.confettiEnabled"
+              @change="settingsStore.setConfettiEnabled($event.target.checked)"
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- Brauzer bildirishnomalari -->
+        <div class="setting-item">
+          <div class="setting-text">
+            <span class="setting-label">Eslatma bildirishnomalari</span>
+            <span class="setting-desc">Vazifa vaqti yetganda va fokus yakunlanganda tizim bildirishnomasi</span>
+          </div>
+          <button
+            type="button"
+            class="btn btn-sm"
+            :class="notificationPermGranted ? 'btn-secondary' : 'btn-primary'"
+            @click="handleRequestNotificationPerm"
+          >
+            <AppIcon :name="notificationPermGranted ? 'check' : 'bell'" :size="15" />
+            <span>{{ notificationPermGranted ? "Faollashtirilgan" : "Ruxsat berish" }}</span>
+          </button>
         </div>
       </section>
 
@@ -766,5 +829,53 @@ async function requestPersist() {
   .backup-actions .btn {
     width: 100%;
   }
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background-color: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  transition: all var(--dur) var(--ease);
+}
+
+.toggle-slider::before {
+  position: absolute;
+  content: '';
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform var(--dur) var(--ease);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
 }
 </style>

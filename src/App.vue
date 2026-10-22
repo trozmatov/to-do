@@ -19,6 +19,7 @@ import ToastHost from '@/components/ToastHost.vue'
 import UpdateToast from '@/components/UpdateToast.vue'
 import InstallPrompt from '@/components/InstallPrompt.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import { notifications } from '@/services/notifications'
 
 const route = useRoute()
 const uiStore = useUiStore()
@@ -41,6 +42,12 @@ onMounted(async () => {
   await settingsStore.load()
   await projectsStore.load()
   await tasksStore.load()
+
+  // 3. Eslatmalar rejalashtiruvchisini ishga tushirish
+  notifications.startScheduler(
+    () => tasksStore.activeTasks,
+    (msg, opts) => uiStore.notify(msg, opts),
+  )
 
   isReady.value = true
 })
