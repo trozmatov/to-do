@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Vazifalar — oflayn To-Do ro'yxati</title>
+    <meta
+      name="description"
+      content="Vazifalar — telefon, planshet va kompyuterda o'rnatiladigan oflayn To-Do ilova. Kunlik, haftalik, oylik va yillik rejalar, loyihalar va statistika."
+    />
+    <meta name="theme-color" content="#f5f6fb" id="meta-theme-color" />
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- iOS / macOS Safari -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Vazifalar" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!-- Mavzuni CSS yuklanishidan oldin qo'yamiz (oq/qora miltillash bo'lmasligi uchun).
+         Asl qiymat IndexedDB'da, bu yerda faqat localStorage'dagi nusxasi o'qiladi. -->
+    <script>
+      ;(function () {
+        try {
+          var t = localStorage.getItem('todo-theme') || 'system'
+          var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+          document.getElementById('meta-theme-color').setAttribute('content', dark ? '#0d0e1a' : '#f5f6fb')
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript>Ilova ishlashi uchun JavaScript yoqilgan bo'lishi kerak.</noscript>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
