@@ -9,6 +9,7 @@
 import { ref, computed } from 'vue'
 import { useTasksStore } from '@/stores/tasks'
 import { useProjectsStore } from '@/stores/projects'
+import { useNotesStore } from '@/stores/notes'
 import BaseModal from './BaseModal.vue'
 import ConfirmModal from './ConfirmModal.vue'
 import AppIcon from './AppIcon.vue'
@@ -22,11 +23,17 @@ const emit = defineEmits(['close'])
 
 const tasksStore = useTasksStore()
 const projectsStore = useProjectsStore()
+const notesStore = useNotesStore()
 
+const activeTab = ref('tasks') // 'tasks' | 'notes'
 const confirmEmptyOpen = ref(false)
-const confirmDeleteId = ref(null)
+const confirmDeleteItem = ref(null) // { type: 'task' | 'note', id: string }
 
-const trashedList = computed(() => tasksStore.trashTasks)
+const trashedTasks = computed(() => tasksStore.trashTasks)
+const trashedNotes = computed(() => notesStore.trashNotes)
+const currentListCount = computed(() =>
+  activeTab.value === 'tasks' ? trashedTasks.value.length : trashedNotes.value.length
+)
 
 function formatDeletedDate(isoStr) {
   if (!isoStr) return ''
@@ -42,23 +49,45 @@ function formatDeletedDate(isoStr) {
   }
 }
 
-async function handleRestore(id) {
+async function handleRestoreTask(id) {
   await tasksStore.restore(id)
 }
 
-function promptPermanentDelete(id) {
-  confirmDeleteId.value = id
+async function handleRestoreNote(id) {
+  await notesStore.restore(id)
 }
 
+function promptPermanentDelete(type, id) {
+  confirmDeleteItem.value = { type, id }
+}
+
+const deleteItemTitle = computed(() =>
+  confirmDeleteItem.value?.type === 'task'
+    ? "Vazifani butunlay o'chirish"
+    : "Qaydni butunlay o'chirish"
+)
+
+const deleteItemMessage = computed(() =>
+  `Ushbu ${confirmDeleteItem.value?.type === 'task' ? 'vazifa' : 'qayd'} xotiradan butunlay o'chiriladi. Davom etasizmi?`
+)
+
 async function confirmPermanentDelete() {
-  if (confirmDeleteId.value) {
-    await tasksStore.permanentDelete(confirmDeleteId.value)
-    confirmDeleteId.value = null
+  if (confirmDeleteItem.value) {
+    if (confirmDeleteItem.value.type === 'task') {
+      await tasksStore.permanentDelete(confirmDeleteItem.value.id)
+    } else {
+      await notesStore.permanentDelete(confirmDeleteItem.value.id)
+    }
+    confirmDeleteItem.value = null
   }
 }
 
 async function handleEmptyTrash() {
-  await tasksStore.emptyTrash()
+  if (activeTab.value === 'tasks') {
+    await tasksStore.emptyTrash()
+  } else {
+    await notesStore.emptyTrash()
+  }
   confirmEmptyOpen.value = false
 }
 </script>
@@ -71,10 +100,36 @@ async function handleEmptyTrash() {
     @close="emit('close')"
   >
     <div class="trash-modal-content">
-      <!-- Yuqori qator: vazifalar soni va tozalash tugmasi -->
-      <div v-if="trashedList.length > 0" class="trash-top-bar">
+      <!-- Savatcha toifasi tablari: Vazifalar / Qaydlar -->
+      <div class="trash-tabs">
+        <button
+          type="button"
+          class="trash-tab"
+          :class="{ active: activeTab === 'tasks' }"
+          @click="activeTab = 'tasks'"
+        >
+          <AppIcon name="check" :size="15" />
+          <span>Vazifalar</span>
+          <span v-if="trashedTasks.length > 0" class="tab-badge">{{ trashedTasks.length }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="trash-tab"
+          :class="{ active: activeTab === 'notes' }"
+          @click="activeTab = 'notes'"
+        >
+          <AppIcon name="note" :size="15" />
+          <span>Qaydlar</span>
+          <span v-if="trashedNotes.length > 0" class="tab-badge">{{ trashedNotes.length }}</span>
+        </button>
+      </div>
+
+      <!-- Yuqori qator: soni va tozalash tugmasi -->
+      <div v-if="currentListCount > 0" class="trash-top-bar">
         <span class="trash-count-text">
-          O'chirilgan vazifalar: <strong>{{ trashedList.length }} ta</strong>
+          O'chirilgan {{ activeTab === 'tasks' ? 'vazifalar' : 'qaydlar' }}:
+          <strong>{{ currentListCount }} ta</strong>
         </span>
         <button
           type="button"
@@ -82,14 +137,14 @@ async function handleEmptyTrash() {
           @click="confirmEmptyOpen = true"
         >
           <AppIcon name="trash" :size="15" />
-          <span>Savatchani tozalash</span>
+          <span>{{ activeTab === 'tasks' ? 'Vazifalarni' : 'Qaydlarni' }} tozalash</span>
         </button>
       </div>
 
-      <!-- Ro'yxat -->
-      <div v-if="trashedList.length > 0" class="trash-list">
+      <!-- Vazifalar ro'yxati -->
+      <div v-if="activeTab === 'tasks' && trashedTasks.length > 0" class="trash-list">
         <div
-          v-for="task in trashedList"
+          v-for="task in trashedTasks"
           :key="task.id"
           class="trash-item-card"
         >
@@ -115,7 +170,7 @@ async function handleEmptyTrash() {
               type="button"
               class="btn btn-sm btn-secondary restore-btn"
               title="Qayta tiklash"
-              @click="handleRestore(task.id)"
+              @click="handleRestoreTask(task.id)"
             >
               <AppIcon name="rotate-ccw" :size="14" />
               <span>Tiklash</span>
@@ -127,7 +182,56 @@ async function handleEmptyTrash() {
               class="btn btn-sm btn-ghost perm-delete-btn"
               title="Butunlay o'chirish"
               aria-label="Butunlay o'chirish"
-              @click="promptPermanentDelete(task.id)"
+              @click="promptPermanentDelete('task', task.id)"
+            >
+              <AppIcon name="trash" :size="14" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Qaydlar ro'yxati -->
+      <div v-else-if="activeTab === 'notes' && trashedNotes.length > 0" class="trash-list">
+        <div
+          v-for="note in trashedNotes"
+          :key="note.id"
+          class="trash-item-card"
+        >
+          <div class="trash-item-main">
+            <h4 class="trash-item-title">{{ note.title || 'Sarlavhasiz qayd' }}</h4>
+            <div class="trash-item-meta">
+              <span
+                v-if="note.projectId && projectsStore.byId[note.projectId]"
+                class="trash-proj-tag"
+                :style="{ color: projectsStore.byId[note.projectId].color }"
+              >
+                {{ projectsStore.byId[note.projectId].name }}
+              </span>
+              <span v-if="note.deletedAt" class="trash-date">
+                O'chirilgan: {{ formatDeletedDate(note.deletedAt) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="trash-item-actions">
+            <!-- Qayta tiklash -->
+            <button
+              type="button"
+              class="btn btn-sm btn-secondary restore-btn"
+              title="Qayta tiklash"
+              @click="handleRestoreNote(note.id)"
+            >
+              <AppIcon name="rotate-ccw" :size="14" />
+              <span>Tiklash</span>
+            </button>
+
+            <!-- Butunlay o'chirish -->
+            <button
+              type="button"
+              class="btn btn-sm btn-ghost perm-delete-btn"
+              title="Butunlay o'chirish"
+              aria-label="Butunlay o'chirish"
+              @click="promptPermanentDelete('note', note.id)"
             >
               <AppIcon name="trash" :size="14" />
             </button>
@@ -138,31 +242,31 @@ async function handleEmptyTrash() {
       <!-- Bo'sh holat -->
       <EmptyState
         v-else
-        title="Savatcha bo'sh"
-        text="O'chirilgan vazifalar shu yerda saqlanadi va ularni istalgan payt tiklashingiz mumkin."
+        :title="activeTab === 'tasks' ? 'Vazifalar savatchasi bo\'sh' : 'Qaydlar savatchasi bo\'sh'"
+        :text="activeTab === 'tasks' ? 'O\'chirilgan vazifalar shu yerda saqlanadi va ularni istalgan payt tiklashingiz mumkin.' : 'O\'chirilgan qaydlar shu yerda saqlanadi va ularni istalgan payt tiklashingiz mumkin.'"
       />
     </div>
 
     <!-- Butunlay tozalashni tasdiqlash modali -->
     <ConfirmModal
       :open="confirmEmptyOpen"
-      title="Savatchani tozalash"
-      message="Savatchadagi barcha vazifalar butunlay o'chiriladi. Bu amalni ortga qaytarib bo'lmaydi. Rozimisiz?"
+      :title="activeTab === 'tasks' ? 'Vazifalar savatchasini tozalash' : 'Qaydlar savatchasini tozalash'"
+      :message="`Savatchadagi barcha ${activeTab === 'tasks' ? 'vazifalar' : 'qaydlar'} butunlay o'chiriladi. Bu amalni ortga qaytarib bo'lmaydi. Rozimisiz?`"
       confirm-text="Tozalash"
       confirm-variant="danger"
       @confirm="handleEmptyTrash"
       @cancel="confirmEmptyOpen = false"
     />
 
-    <!-- Bitta vazifani butunlay o'chirishni tasdiqlash modali -->
+    <!-- Bitta elementni butunlay o'chirishni tasdiqlash modali -->
     <ConfirmModal
-      :open="!!confirmDeleteId"
-      title="Vazifani butunlay o'chirish"
-      message="Ushbu vazifa xotiradan butunlay o'chiriladi. Davom etasizmi?"
+      :open="!!confirmDeleteItem"
+      :title="deleteItemTitle"
+      :message="deleteItemMessage"
       confirm-text="O'chirish"
       confirm-variant="danger"
       @confirm="confirmPermanentDelete"
-      @cancel="confirmDeleteId = null"
+      @cancel="confirmDeleteItem = null"
     />
   </BaseModal>
 </template>
@@ -172,6 +276,61 @@ async function handleEmptyTrash() {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.trash-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.trash-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+}
+
+.trash-tab:hover {
+  color: var(--text);
+}
+
+.trash-tab.active {
+  background: var(--surface-solid);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--border);
+  color: var(--text-2);
+}
+
+.trash-tab.active .tab-badge {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .trash-top-bar {

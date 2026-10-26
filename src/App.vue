@@ -14,6 +14,7 @@ import { useUiStore } from '@/stores/ui'
 import { useSettingsStore } from '@/stores/settings'
 import { useProjectsStore } from '@/stores/projects'
 import { useTasksStore } from '@/stores/tasks'
+import { useNotesStore } from '@/stores/notes'
 import Sidebar from '@/components/Sidebar.vue'
 import ToastHost from '@/components/ToastHost.vue'
 import UpdateToast from '@/components/UpdateToast.vue'
@@ -26,6 +27,7 @@ const uiStore = useUiStore()
 const settingsStore = useSettingsStore()
 const projectsStore = useProjectsStore()
 const tasksStore = useTasksStore()
+const notesStore = useNotesStore()
 
 const isReady = ref(false)
 const installModalOpen = ref(false)
@@ -42,6 +44,7 @@ onMounted(async () => {
   await settingsStore.load()
   await projectsStore.load()
   await tasksStore.load()
+  await notesStore.load()
 
   // 3. Eslatmalar rejalashtiruvchisini ishga tushirish
   notifications.startScheduler(

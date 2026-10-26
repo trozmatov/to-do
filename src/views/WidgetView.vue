@@ -13,6 +13,8 @@ import { useRouter } from 'vue-router'
 import { useToday, periodKey, parseISODate, periodLabel, isOverdue } from '@/composables/usePeriod'
 import { useTasksStore, computeStats } from '@/stores/tasks'
 import { useProjectsStore } from '@/stores/projects'
+import { useNotesStore } from '@/stores/notes'
+import { useUiStore } from '@/stores/ui'
 import ProgressBar from '@/components/ProgressBar.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -21,9 +23,13 @@ const router = useRouter()
 const todayISO = useToday()
 const tasksStore = useTasksStore()
 const projectsStore = useProjectsStore()
+const notesStore = useNotesStore()
+const uiStore = useUiStore()
 
 const quickTitle = ref('')
 const isAdding = ref(false)
+const quickNoteText = ref('')
+const isAddingNote = ref(false)
 const infoModalOpen = ref(false)
 
 const todayDate = computed(() => parseISODate(todayISO.value))
@@ -63,6 +69,36 @@ async function handleQuickAdd() {
   })
   quickTitle.value = ''
   isAdding.value = false
+}
+
+async function handleQuickNote() {
+  const text = quickNoteText.value.trim()
+  if (!text) return
+  isAddingNote.value = true
+  const note = await notesStore.create({
+    title: text,
+    content: {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text }],
+        },
+      ],
+    },
+    plainText: text,
+  })
+  quickNoteText.value = ''
+  isAddingNote.value = false
+  if (note) {
+    uiStore.notify("Tez qayd yaratildi", {
+      type: 'success',
+      action: {
+        label: "Ko'rish",
+        run: () => router.push(`/notes/${note.id}`),
+      },
+    })
+  }
 }
 
 function handleToggle(id) {
@@ -121,7 +157,7 @@ function handleDelete(id) {
         <ProgressBar :value="stats.percent" size="sm" />
       </div>
 
-      <!-- Tezkor qo'shish maydoni -->
+      <!-- Tezkor vazifa qo'shish maydoni -->
       <form class="quick-add-form" @submit.prevent="handleQuickAdd">
         <input
           v-model="quickTitle"
@@ -138,6 +174,27 @@ function handleDelete(id) {
           :disabled="!quickTitle.trim() || isAdding"
         >
           <AppIcon name="plus" :size="16" />
+        </button>
+      </form>
+
+      <!-- Tez qayd maydoni -->
+      <form class="quick-note-form" @submit.prevent="handleQuickNote">
+        <input
+          v-model="quickNoteText"
+          type="text"
+          class="quick-input quick-note-input"
+          placeholder="Tez qayd yozish..."
+          maxlength="300"
+          :disabled="isAddingNote"
+        />
+        <button
+          type="submit"
+          class="quick-note-btn"
+          aria-label="Qayd yaratish"
+          title="Qayd yaratish"
+          :disabled="!quickNoteText.trim() || isAddingNote"
+        >
+          <AppIcon name="note" :size="15" />
         </button>
       </form>
 
@@ -215,8 +272,12 @@ function handleDelete(id) {
 
       <!-- Footer havolasi -->
       <footer class="widget-footer">
+        <router-link to="/notes" class="full-app-link notes-link">
+          <AppIcon name="note" :size="14" />
+          <span>Qaydlar</span>
+        </router-link>
         <router-link to="/" class="full-app-link">
-          <span>To'liq ro'yxatni ochish</span>
+          <span>To'liq ro'yxat</span>
           <AppIcon name="arrow-right" :size="14" />
         </router-link>
       </footer>
@@ -399,6 +460,38 @@ function handleDelete(id) {
   opacity: 0.3;
 }
 
+/* Quick Note */
+.quick-note-form {
+  position: relative;
+  padding: 6px 18px 10px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.quick-note-input {
+  background: var(--surface-2);
+}
+
+.quick-note-btn {
+  position: absolute;
+  right: 24px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--warning);
+  color: #fff;
+  border: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.quick-note-btn:disabled {
+  opacity: 0.3;
+}
+
 /* Scrollable Tasks */
 .widget-tasks-scroll {
   flex: 1;
@@ -551,16 +644,26 @@ function handleDelete(id) {
   padding: 10px 18px;
   border-top: 1px solid var(--border);
   background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .full-app-link {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
   color: var(--accent);
+}
+
+.notes-link {
+  color: var(--text-2);
+}
+
+.notes-link:hover {
+  color: var(--warning);
 }
 
 .full-app-link:hover {

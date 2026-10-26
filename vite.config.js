@@ -39,6 +39,12 @@ export default defineConfig({
             url: '/widget',
             icons: [{ src: 'pwa-192.png', sizes: '192x192', type: 'image/png' }],
           },
+          {
+            name: 'Qaydlar',
+            short_name: 'Qaydlar',
+            url: '/notes',
+            icons: [{ src: 'pwa-192.png', sizes: '192x192', type: 'image/png' }],
+          },
         ],
       },
       workbox: {

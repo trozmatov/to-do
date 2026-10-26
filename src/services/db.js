@@ -11,13 +11,13 @@
 import { openDB } from 'idb'
 
 export const DB_NAME = 'todo-app'
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 export const INBOX_ID = 'inbox'
 
 export const BACKUP_FORMAT = 'todo-app-backup'
-export const BACKUP_VERSION = 1
+export const BACKUP_VERSION = 2
 
-const STORES = ['projects', 'tasks', 'meta']
+const STORES = ['projects', 'tasks', 'meta', 'notes', 'attachments']
 const VALID_PERIODS = ['day', 'week', 'month', 'year']
 const VALID_PRIORITIES = ['low', 'medium', 'high']
 /** Zaxiraga kiradigan sozlamalar (qurilmaga xos qiymatlar kirmaydi) */
@@ -36,6 +36,30 @@ const plain = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)))
 export function createInboxProject() {
   const now = new Date().toISOString()
   return { id: INBOX_ID, name: 'Kiruvchi', color: '#6366f1', icon: '📥', createdAt: now, updatedAt: now }
+}
+
+/** Blob faylini Base64 matniga o'girish */
+export function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+/** Base64 matnini Blob fayliga o'girish */
+export function base64ToBlob(base64Data, contentType = '') {
+  if (!base64Data) return null
+  const parts = base64Data.split(';base64,')
+  const mime = parts.length > 1 ? parts[0].replace('data:', '') : contentType
+  const raw = atob(parts.length > 1 ? parts[1] : parts[0])
+  const rawLength = raw.length
+  const uInt8Array = new Uint8Array(rawLength)
+  for (let i = 0; i < rawLength; ++i) {
+    uInt8Array[i] = raw.charCodeAt(i)
+  }
+  return new Blob([uInt8Array], { type: mime || 'image/png' })
 }
 
 /* ------------------------------------------------------------------ */
@@ -61,7 +85,18 @@ function upgrade(db, oldVersion) {
 
       db.createObjectStore('meta', { keyPath: 'key' })
     }
-    // case 1: kelajakdagi migratsiya shu yerga yoziladi (DB_VERSION = 2 bo'lganda)
+    // eslint-disable-next-line no-fallthrough
+    case 1: {
+      const notes = db.createObjectStore('notes', { keyPath: 'id' })
+      notes.createIndex('updatedAt', 'updatedAt')
+      notes.createIndex('pinned', 'pinned')
+      notes.createIndex('projectId', 'projectId')
+      notes.createIndex('taskId', 'taskId')
+      notes.createIndex('deletedAt', 'deletedAt')
+
+      const attachments = db.createObjectStore('attachments', { keyPath: 'id' })
+      attachments.createIndex('noteId', 'noteId')
+    }
   }
 }
 
@@ -224,6 +259,57 @@ export const deleteTask = (id) => A().batch([{ type: 'delete', store: 'tasks', k
 export const deleteTasks = (ids) => A().batch(ids.map((key) => ({ type: 'delete', store: 'tasks', key })))
 
 /* ------------------------------------------------------------------ */
+/* CRUD: qaydlar (notes)                                              */
+/* ------------------------------------------------------------------ */
+
+export const getNotes = () => A().getAll('notes')
+
+export const getNote = (id) => A().get('notes', id)
+
+export const saveNote = (note) => A().batch([{ type: 'put', store: 'notes', value: note }])
+
+export const saveNotes = (notes) => A().batch(notes.map((value) => ({ type: 'put', store: 'notes', value })))
+
+export async function deleteNote(id) {
+  const attachments = await getAttachmentsByNote(id)
+  const ops = [
+    { type: 'delete', store: 'notes', key: id },
+    ...attachments.map((att) => ({ type: 'delete', store: 'attachments', key: att.id })),
+  ]
+  return A().batch(ops)
+}
+
+export async function deleteNotes(ids) {
+  const ops = []
+  for (const id of ids) {
+    const attachments = await getAttachmentsByNote(id)
+    ops.push({ type: 'delete', store: 'notes', key: id })
+    attachments.forEach((att) => ops.push({ type: 'delete', store: 'attachments', key: att.id }))
+  }
+  return A().batch(ops)
+}
+
+/* ------------------------------------------------------------------ */
+/* CRUD: biriktirmalar (attachments)                                  */
+/* ------------------------------------------------------------------ */
+
+export const getAttachments = () => A().getAll('attachments')
+
+export async function getAttachmentsByNote(noteId) {
+  if (A().kind === 'idb') {
+    return A().getAllByIndex('attachments', 'noteId', noteId)
+  }
+  const all = await A().getAll('attachments')
+  return all.filter((a) => a.noteId === noteId)
+}
+
+export const getAttachment = (id) => A().get('attachments', id)
+
+export const saveAttachment = (attachment) => A().batch([{ type: 'put', store: 'attachments', value: attachment }])
+
+export const deleteAttachment = (id) => A().batch([{ type: 'delete', store: 'attachments', key: id }])
+
+/* ------------------------------------------------------------------ */
 /* Meta (sozlamalar)                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -240,7 +326,37 @@ export const setMeta = (key, value) => A().batch([{ type: 'put', store: 'meta', 
 /* ------------------------------------------------------------------ */
 
 export async function exportData() {
-  const [projects, tasks, meta] = await Promise.all([A().getAll('projects'), A().getAll('tasks'), A().getAll('meta')])
+  const [projects, tasks, meta, notes, attachments] = await Promise.all([
+    A().getAll('projects'),
+    A().getAll('tasks'),
+    A().getAll('meta'),
+    A().getAll('notes'),
+    A().getAll('attachments'),
+  ])
+
+  // Attachments Blob'larni Base64 formatga aylantirish
+  const serializedAttachments = await Promise.all(
+    attachments.map(async (att) => {
+      let dataBase64 = att.dataBase64
+      if (!dataBase64 && att.blob) {
+        try {
+          dataBase64 = await blobToBase64(att.blob)
+        } catch (e) {
+          console.error("Blob base64 ga o'girilmadi:", e)
+        }
+      }
+      return {
+        id: att.id,
+        noteId: att.noteId,
+        name: att.name || 'attachment',
+        type: att.type || 'image/png',
+        size: att.size || 0,
+        createdAt: att.createdAt || new Date().toISOString(),
+        dataBase64: dataBase64 || null,
+      }
+    }),
+  )
+
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -250,6 +366,8 @@ export async function exportData() {
       projects,
       tasks,
       meta: meta.filter((m) => EXPORTABLE_META.includes(m.key)),
+      notes,
+      attachments: serializedAttachments,
     },
   }
 }
@@ -354,6 +472,48 @@ export function validateBackup(text) {
     })
   })
 
+  // Qaydlar (notes)
+  const notes = []
+  if (Array.isArray(d.notes)) {
+    const noteIds = new Set()
+    d.notes.forEach((n, i) => {
+      const name = `Qayd #${i + 1}`
+      if (!n || typeof n !== 'object') return err(`${name}: yozuv noto'g'ri.`)
+      if (!isStr(n.id) || !n.id) return err(`${name}: "id" yo'q.`)
+      if (noteIds.has(n.id)) return err(`${name}: "id" takrorlangan.`)
+      noteIds.add(n.id)
+      notes.push({
+        id: n.id,
+        title: isStr(n.title) ? n.title.slice(0, 300) : 'Sarlavhasiz qayd',
+        content: n.content && typeof n.content === 'object' ? n.content : null,
+        plainText: isStr(n.plainText) ? n.plainText : '',
+        projectId: isStr(n.projectId) ? n.projectId : null,
+        taskId: isStr(n.taskId) ? n.taskId : null,
+        pinned: n.pinned === true,
+        deletedAt: isStr(n.deletedAt) ? n.deletedAt : null,
+        createdAt: validTs(n.createdAt),
+        updatedAt: validTs(n.updatedAt),
+      })
+    })
+  }
+
+  // Biriktirmalar (attachments)
+  const attachments = []
+  if (Array.isArray(d.attachments)) {
+    d.attachments.forEach((a) => {
+      if (!a || typeof a !== 'object' || !isStr(a.id) || !isStr(a.noteId)) return
+      attachments.push({
+        id: a.id,
+        noteId: a.noteId,
+        name: isStr(a.name) ? a.name : 'attachment',
+        type: isStr(a.type) ? a.type : 'image/png',
+        size: Number.isFinite(a.size) ? a.size : 0,
+        dataBase64: isStr(a.dataBase64) ? a.dataBase64 : null,
+        createdAt: validTs(a.createdAt),
+      })
+    })
+  }
+
   if (errors.length) return { ok: false, errors }
 
   const meta = Array.isArray(d.meta)
@@ -362,8 +522,15 @@ export function validateBackup(text) {
 
   return {
     ok: true,
-    data: { projects, tasks, meta },
-    summary: { projects: projects.length, tasks: tasks.length, reassigned, exportedAt: json.exportedAt ?? null },
+    data: { projects, tasks, meta, notes, attachments },
+    summary: {
+      projects: projects.length,
+      tasks: tasks.length,
+      notes: notes.length,
+      attachments: attachments.length,
+      reassigned,
+      exportedAt: json.exportedAt ?? null,
+    },
   }
 }
 
@@ -379,24 +546,44 @@ export async function importData(data, mode = 'replace') {
   let skipped = 0
 
   if (mode === 'replace') {
-    ops.push({ type: 'clear', store: 'projects' }, { type: 'clear', store: 'tasks' })
+    ops.push(
+      { type: 'clear', store: 'projects' },
+      { type: 'clear', store: 'tasks' },
+      { type: 'clear', store: 'notes' },
+      { type: 'clear', store: 'attachments' },
+    )
     data.projects.forEach((value) => ops.push({ type: 'put', store: 'projects', value }))
     data.tasks.forEach((value) => ops.push({ type: 'put', store: 'tasks', value }))
     data.meta.forEach((value) => ops.push({ type: 'put', store: 'meta', value }))
+    if (data.notes) {
+      data.notes.forEach((value) => ops.push({ type: 'put', store: 'notes', value }))
+    }
+    if (data.attachments) {
+      data.attachments.forEach((att) => {
+        const blob = att.dataBase64 ? base64ToBlob(att.dataBase64, att.type) : (att.blob || null)
+        ops.push({ type: 'put', store: 'attachments', value: { ...att, blob } })
+      })
+    }
     if (!data.projects.some((p) => p.id === INBOX_ID)) {
       ops.push({ type: 'put', store: 'projects', value: createInboxProject() })
     }
-    added = data.projects.length + data.tasks.length
+    added = data.projects.length + data.tasks.length + (data.notes?.length || 0)
   } else {
-    const [curProjects, curTasks] = await Promise.all([A().getAll('projects'), A().getAll('tasks')])
-    const merge = (store, current, incoming) => {
+    const [curProjects, curTasks, curNotes, curAttachments] = await Promise.all([
+      A().getAll('projects'),
+      A().getAll('tasks'),
+      A().getAll('notes'),
+      A().getAll('attachments'),
+    ])
+    const merge = (store, current, incoming, transform = (x) => x) => {
       const map = new Map(current.map((x) => [x.id, x]))
-      for (const item of incoming) {
+      for (const rawItem of incoming) {
+        const item = transform(rawItem)
         const existing = map.get(item.id)
         if (!existing) {
           ops.push({ type: 'put', store, value: item })
           added++
-        } else if ((item.updatedAt || '') > (existing.updatedAt || '')) {
+        } else if ((item.updatedAt || item.createdAt || '') > (existing.updatedAt || existing.createdAt || '')) {
           ops.push({ type: 'put', store, value: item })
           updated++
         } else {
@@ -406,6 +593,13 @@ export async function importData(data, mode = 'replace') {
     }
     merge('projects', curProjects, data.projects)
     merge('tasks', curTasks, data.tasks)
+    if (data.notes) merge('notes', curNotes, data.notes)
+    if (data.attachments) {
+      merge('attachments', curAttachments, data.attachments, (att) => {
+        const blob = att.dataBase64 ? base64ToBlob(att.dataBase64, att.type) : (att.blob || null)
+        return { ...att, blob }
+      })
+    }
   }
 
   await A().batch(ops)

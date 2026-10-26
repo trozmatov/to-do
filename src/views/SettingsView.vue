@@ -14,6 +14,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useUiStore } from '@/stores/ui'
 import { useProjectsStore } from '@/stores/projects'
 import { useTasksStore } from '@/stores/tasks'
+import { useNotesStore } from '@/stores/notes'
 import {
   exportData,
   validateBackup,
@@ -29,6 +30,7 @@ const settingsStore = useSettingsStore()
 const uiStore = useUiStore()
 const projectsStore = useProjectsStore()
 const tasksStore = useTasksStore()
+const notesStore = useNotesStore()
 
 const storageStatus = getStorageStatus()
 const fileInput = ref(null)
@@ -149,6 +151,7 @@ async function confirmImport() {
     // Qayta yuklash
     await projectsStore.load()
     await tasksStore.load()
+    await notesStore.load()
 
     importModalOpen.value = false
     importValidatedData.value = null
@@ -426,6 +429,14 @@ async function requestPersist() {
           <div class="summary-row">
             <span>Vazifalar:</span>
             <strong>{{ importFileSummary.tasks }} ta</strong>
+          </div>
+          <div v-if="importFileSummary.notes !== undefined" class="summary-row">
+            <span>Qaydlar:</span>
+            <strong>{{ importFileSummary.notes }} ta</strong>
+          </div>
+          <div v-if="importFileSummary.attachments !== undefined" class="summary-row">
+            <span>Biriktirmalar:</span>
+            <strong>{{ importFileSummary.attachments }} ta</strong>
           </div>
           <div v-if="importFileSummary.exportedAt" class="summary-row">
             <span>Yaratilgan sana:</span>

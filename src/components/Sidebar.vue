@@ -12,6 +12,7 @@ import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useTasksStore } from '@/stores/tasks'
+import { useNotesStore } from '@/stores/notes'
 import { useSettingsStore } from '@/stores/settings'
 import { useUiStore } from '@/stores/ui'
 import { useInstallPrompt } from '@/composables/useInstallPrompt'
@@ -25,6 +26,7 @@ const route = useRoute()
 
 const projectsStore = useProjectsStore()
 const tasksStore = useTasksStore()
+const notesStore = useNotesStore()
 const settingsStore = useSettingsStore()
 const uiStore = useUiStore()
 const { showInstallButton } = useInstallPrompt()
@@ -45,7 +47,8 @@ const deleteModalTitle = computed(() => `"${projectToDelete.value?.name || ''}" 
 
 function selectProject(id) {
   tasksStore.filter.projectId = id
-  if (route.name !== 'home') {
+  notesStore.filter.projectId = id
+  if (route.name !== 'home' && route.name !== 'notes' && route.name !== 'note-detail') {
     router.push('/')
   }
   uiStore.sidebarOpen = false
@@ -172,6 +175,22 @@ const themeLabels = {
           </span>
         </button>
 
+        <!-- Qaydlar -->
+        <button
+          type="button"
+          class="nav-item notes-nav-item"
+          :class="{ active: route.name === 'notes' || route.name === 'note-detail' }"
+          @click="navigateTo('/notes')"
+        >
+          <span class="item-icon-wrap notes-icon-wrap">
+            <AppIcon name="note" :size="16" />
+          </span>
+          <span class="item-name">Qaydlar</span>
+          <span v-if="notesStore.activeNotes.length > 0" class="badge">
+            {{ notesStore.activeNotes.length }}
+          </span>
+        </button>
+
         <!-- Savatcha -->
         <button
           type="button"
@@ -182,8 +201,8 @@ const themeLabels = {
             <AppIcon name="trash" :size="16" />
           </span>
           <span class="item-name">Savatcha</span>
-          <span v-if="tasksStore.trashCount > 0" class="badge badge-subtle">
-            {{ tasksStore.trashCount }}
+          <span v-if="(tasksStore.trashCount + notesStore.trashNotes.length) > 0" class="badge badge-subtle">
+            {{ tasksStore.trashCount + notesStore.trashNotes.length }}
           </span>
         </button>
 
@@ -494,6 +513,16 @@ const themeLabels = {
   color: var(--danger);
   background: var(--danger-soft);
   border-color: transparent;
+}
+
+.notes-icon-wrap {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.notes-nav-item.active .notes-icon-wrap {
+  background: var(--warning);
+  color: #fff;
 }
 
 .custom-emoji {
